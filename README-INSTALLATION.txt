@@ -1,4 +1,4 @@
-# Contrôle EAN13 — V5
+# Contrôle EAN13 — V6.7
 
 ## Installation sur smartphone
 
@@ -25,5 +25,5 @@ La détection automatique EAN13 utilise l'API BarcodeDetector lorsqu'elle est di
 
 
 ### Nom du fichier de fin de contrôle
-Le nom du fichier Excel est automatiquement basé sur le nom du TXT chargé.
-Exemple : `references.txt` devient `references-fin-de-controle-AAAA-MM-JJ.xls`.
+Le nom du fichier Excel commence par « 1er contrôle » et reprend automatiquement le nom du TXT chargé.
+Exemple : `references.txt` devient `1er contrôle - references.xls`.

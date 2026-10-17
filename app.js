@@ -5,6 +5,8 @@ let stream = null, scanning = false, detector = null;
 let scanCooldownUntil = 0;
 let audioCtx = null;
 let voiceReady = false;
+let scanCanvas = null;
+let scanCtx = null;
 let sourceFileBaseName = "controle-EAN13";
 
 const $ = id => document.getElementById(id);
@@ -121,8 +123,25 @@ async function startCamera(){
 async function scanLoop(){
   if(!scanning||!detector)return;
   try{
-    const codes=await detector.detect(video);
-    if(Date.now() >= scanCooldownUntil && codes.length&&codes[0].rawValue){verify(codes[0].rawValue); scanCooldownUntil=Date.now()+2500}
+    // Ne demander au détecteur que la bande centrale étroite affichée en rouge.
+    // Cela évite que des codes présents ailleurs dans l'image soient pris en compte.
+    if(video.videoWidth && video.videoHeight){
+      const sourceHeight=Math.max(1,Math.floor(video.videoHeight*0.22));
+      const sourceY=Math.floor((video.videoHeight-sourceHeight)/2);
+      if(!scanCanvas){scanCanvas=document.createElement("canvas");scanCtx=scanCanvas.getContext("2d",{willReadFrequently:true});}
+      const targetWidth=video.videoWidth;
+      const targetHeight=sourceHeight;
+      if(scanCanvas.width!==targetWidth||scanCanvas.height!==targetHeight){
+        scanCanvas.width=targetWidth;
+        scanCanvas.height=targetHeight;
+      }
+      scanCtx.drawImage(video,0,sourceY,video.videoWidth,sourceHeight,0,0,targetWidth,targetHeight);
+      const codes=await detector.detect(scanCanvas);
+      if(Date.now() >= scanCooldownUntil && codes.length&&codes[0].rawValue){
+        verify(codes[0].rawValue);
+        scanCooldownUntil=Date.now()+2500;
+      }
+    }
   }catch(e){}
   requestAnimationFrame(scanLoop);
 }
@@ -218,10 +237,9 @@ function exportExcel(){
   const blob = new Blob([xml], {type:"application/vnd.ms-excel"});
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
-  const date = new Date().toISOString().slice(0,10);
   a.href = url;
   const safeBase = sourceFileBaseName.replace(/[^a-zA-Z0-9À-ÿ _.-]/g, "_").replace(/\s+/g, " ").trim() || "controle-EAN13";
-  a.download = `${safeBase}-fin-de-controle-${date}.xls`;
+  a.download = `1er contrôle - ${safeBase}.xls`;
   document.body.appendChild(a);
   a.click();
   a.remove();

@@ -3,12 +3,12 @@
 
 .version-badge{display:inline-block;margin-left:8px;padding:3px 8px;border:1px solid rgba(0,255,180,.45);border-radius:8px;font-size:.42em;font-weight:700;letter-spacing:.06em;color:#00ffb4;vertical-align:middle;opacity:.9}
 
-/* Zone de scan fine : ligne rouge centrale et bande de lecture */
-.scan-line-zone{position:absolute;left:12%;right:12%;top:50%;height:72px;transform:translateY(-50%);border-top:1px solid rgba(255,50,65,.28);border-bottom:1px solid rgba(255,50,65,.28);background:rgba(0,0,0,.10);pointer-events:none;z-index:3}
+/* Zone de scan très fine : seul le couloir central est présenté comme zone de lecture. */
+.scan-line-zone{position:absolute;left:8%;right:8%;top:50%;height:44px;transform:translateY(-50%);border:1px solid rgba(255,48,69,.55);background:rgba(0,0,0,.08);pointer-events:none;z-index:3}
 .scan-line{position:absolute;left:0;right:0;top:50%;height:2px;transform:translateY(-50%);background:#ff3045;box-shadow:0 0 5px #ff3045,0 0 12px rgba(255,48,69,.85),0 0 22px rgba(255,48,69,.45)}
-.scan-line::before,.scan-line::after{content:"";position:absolute;top:50%;width:9px;height:9px;border-radius:50%;background:#ff3045;box-shadow:0 0 8px #ff3045;transform:translateY(-50%)}
+.scan-line::before,.scan-line::after{content:"";position:absolute;top:50%;width:8px;height:8px;border-radius:50%;background:#ff3045;box-shadow:0 0 8px #ff3045;transform:translateY(-50%)}
 .scan-line::before{left:-4px}.scan-line::after{right:-4px}
-.scan-mask{position:absolute;inset:0;pointer-events:none;z-index:2;background:linear-gradient(to bottom,rgba(0,0,0,.38) 0%,rgba(0,0,0,.38) calc(50% - 37px),transparent calc(50% - 37px),transparent calc(50% + 37px),rgba(0,0,0,.38) calc(50% + 37px),rgba(0,0,0,.38) 100%)}
+.scan-mask{position:absolute;inset:0;pointer-events:none;z-index:2;background:linear-gradient(to bottom,rgba(0,0,0,.55) 0%,rgba(0,0,0,.55) calc(50% - 22px),transparent calc(50% - 22px),transparent calc(50% + 22px),rgba(0,0,0,.55) calc(50% + 22px),rgba(0,0,0,.55) 100%)}
 .scanner video{position:relative;z-index:1}
 .corners{z-index:4}
-@media(max-width:430px){.scan-line-zone{height:64px;left:9%;right:9%}}
+@media(max-width:430px){.scan-line-zone{height:38px;left:6%;right:6%}.scan-mask{background:linear-gradient(to bottom,rgba(0,0,0,.58) 0%,rgba(0,0,0,.58) calc(50% - 19px),transparent calc(50% - 19px),transparent calc(50% + 19px),rgba(0,0,0,.58) calc(50% + 19px),rgba(0,0,0,.58) 100%)}}
