@@ -28,44 +28,26 @@ function renderHistory(){
     </div>`).join("");
 }
 
-function ensureAudio(){
-  try{
-    if(!audioCtx){
-      const Ctx = window.AudioContext || window.webkitAudioContext;
-      if(Ctx) audioCtx = new Ctx();
-    }
-    if(audioCtx && audioCtx.state === "suspended") audioCtx.resume();
-  }catch(e){}
-}
-
 function beep(type){
-  ensureAudio();
-  if(!audioCtx) return;
-  const now = audioCtx.currentTime;
-
-  const tone = (freq, start, duration, volume=0.07, wave="sine") => {
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.type = wave;
-    osc.frequency.setValueAtTime(freq, now + start);
-    gain.gain.setValueAtTime(0.0001, now + start);
-    gain.gain.exponentialRampToValueAtTime(volume, now + start + 0.012);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + start + duration);
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    osc.start(now + start);
-    osc.stop(now + start + duration + 0.02);
-  };
-
-  if(type === "ok"){
-    tone(880, 0, 0.10, 0.08, "sine");
-    tone(1320, 0.12, 0.13, 0.08, "sine");
-  }else if(type === "unknown"){
-    tone(260, 0, 0.18, 0.09, "square");
-  }else if(type === "duplicate"){
-    tone(520, 0, 0.10, 0.07, "triangle");
-    tone(520, 0.13, 0.10, 0.07, "triangle");
-  }
+  try{
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if(!Ctx) return;
+    if(!audioCtx) audioCtx = new Ctx();
+    if(audioCtx.state === "suspended") audioCtx.resume();
+    const now = audioCtx.currentTime;
+    const tone=(freq,start,dur,wave="sine")=>{
+      const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+      o.type=wave; o.frequency.value=freq;
+      g.gain.setValueAtTime(0.0001,now+start);
+      g.gain.exponentialRampToValueAtTime(0.07,now+start+0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001,now+start+dur);
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start(now+start); o.stop(now+start+dur+0.02);
+    };
+    if(type==="ok"){tone(880,0,.10);tone(1320,.12,.12)}
+    else if(type==="unknown"){tone(260,0,.18,"square")}
+    else {tone(520,0,.10,"triangle");tone(520,.13,.10,"triangle")}
+  }catch(e){}
 }
 
 function verify(code){
@@ -78,7 +60,7 @@ function verify(code){
   $("manualInput").value = "";
   renderHistory();
   showResult(`${code} — ${label}`,cls);
-  beep(cls);
+  try{beep(cls)}catch(e){}
 }
 function showResult(msg,cls){
   resultEl.textContent=msg;
@@ -107,9 +89,7 @@ async function startCamera(){
         audio:false
       });
     });
-    video.srcObject=stream; await video.play(); video.style.display="block"; placeholder.style.display="none";
-    scanCooldownUntil = 0;
-    ensureAudio();
+    video.srcObject=stream; await video.play(); video.style.display="block"; placeholder.style.display="none"; scanCooldownUntil=0;
     $("startCamera").classList.add("hidden");$("stopCamera").classList.remove("hidden");scanning=true;
     if("BarcodeDetector" in window){
       const formats=await BarcodeDetector.getSupportedFormats();
@@ -123,20 +103,13 @@ async function startCamera(){
 async function scanLoop(){
   if(!scanning||!detector)return;
   try{
-    const now = Date.now();
-    if(now >= scanCooldownUntil){
-      const codes = await detector.detect(video);
-      if(codes.length && codes[0].rawValue){
-        verify(codes[0].rawValue);
-        scanCooldownUntil = Date.now() + 2500;
-      }
-    }
+    const codes=await detector.detect(video);
+    if(Date.now() >= scanCooldownUntil && codes.length&&codes[0].rawValue){verify(codes[0].rawValue); scanCooldownUntil=Date.now()+2500}
   }catch(e){}
   requestAnimationFrame(scanLoop);
 }
 function stopCamera(){
-  scanning=false;
-  scanCooldownUntil = 0;if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;video.style.display="none";placeholder.style.display="flex";
+  scanning=false;scanCooldownUntil=0;if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;video.style.display="none";placeholder.style.display="flex";
   $("startCamera").classList.remove("hidden");$("stopCamera").classList.add("hidden");
 }
 $("startCamera").addEventListener("click",startCamera);
