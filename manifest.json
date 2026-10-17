@@ -1,0 +1,13 @@
+{
+  "name": "Contrôle EAN13",
+  "short_name": "EAN13",
+  "description": "Contrôle et vérification de codes-barres EAN13",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#030b18",
+  "theme_color": "#061225",
+  "lang": "fr",
+  "icons": []
+}
