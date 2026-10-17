@@ -22,3 +22,8 @@ La caméra nécessite une page HTTPS (sauf localhost).
 
 ## Important
 La détection automatique EAN13 utilise l'API BarcodeDetector lorsqu'elle est disponible dans le navigateur. Si elle n'est pas disponible, la saisie manuelle reste utilisable.
+
+
+V6 :
+- Bip sonore différent selon OK, INCONNU et DOUBLON.
+- Pause automatique de 2,5 secondes après chaque scan caméra pour éviter les scans répétés du même code.
