@@ -1,7 +1,9 @@
 const refs = new Set();
 const scanned = new Set();
 let history = JSON.parse(localStorage.getItem("ean13-history") || "[]");
-let stream = null, scanning = false, detector = null;\nlet scanCooldownUntil = 0;\nlet audioCtx = null;
+let stream = null, scanning = false, detector = null;
+let scanCooldownUntil = 0;
+let audioCtx = null;
 
 const $ = id => document.getElementById(id);
 const fileInput=$("fileInput"), fileName=$("fileName"), fileStatus=$("fileStatus");

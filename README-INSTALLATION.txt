@@ -27,3 +27,6 @@ La détection automatique EAN13 utilise l'API BarcodeDetector lorsqu'elle est di
 V6 :
 - Bip sonore différent selon OK, INCONNU et DOUBLON.
 - Pause automatique de 2,5 secondes après chaque scan caméra pour éviter les scans répétés du même code.
+
+
+V6.2 : affichage de la version « V6.2 » à côté du titre Contrôle EAN13.
