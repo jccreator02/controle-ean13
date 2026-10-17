@@ -22,3 +22,8 @@ La caméra nécessite une page HTTPS (sauf localhost).
 
 ## Important
 La détection automatique EAN13 utilise l'API BarcodeDetector lorsqu'elle est disponible dans le navigateur. Si elle n'est pas disponible, la saisie manuelle reste utilisable.
+
+
+### Nom du fichier de fin de contrôle
+Le nom du fichier Excel est automatiquement basé sur le nom du TXT chargé.
+Exemple : `references.txt` devient `references-fin-de-controle-AAAA-MM-JJ.xls`.

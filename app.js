@@ -5,6 +5,7 @@ let stream = null, scanning = false, detector = null;
 let scanCooldownUntil = 0;
 let audioCtx = null;
 let voiceReady = false;
+let sourceFileBaseName = "controle-EAN13";
 
 const $ = id => document.getElementById(id);
 const fileInput=$("fileInput"), fileName=$("fileName"), fileStatus=$("fileStatus");
@@ -85,6 +86,7 @@ function showResult(msg,cls){
 fileInput.addEventListener("change", async e=>{
   const f=e.target.files[0]; if(!f)return;
   fileName.textContent=f.name;
+  sourceFileBaseName = f.name.replace(/\.[^.]+$/, "").trim() || "controle-EAN13";
   const text=await f.text();
   refs.clear();
   text.split(/\r?\n/).forEach(line=>{const code=line.trim().replace(/\D/g,"");if(validEAN13(code))refs.add(code)});
@@ -218,7 +220,8 @@ function exportExcel(){
   const a = document.createElement("a");
   const date = new Date().toISOString().slice(0,10);
   a.href = url;
-  a.download = `controle-EAN13-${date}.xls`;
+  const safeBase = sourceFileBaseName.replace(/[^a-zA-Z0-9À-ÿ _.-]/g, "_").replace(/\s+/g, " ").trim() || "controle-EAN13";
+  a.download = `${safeBase}-fin-de-controle-${date}.xls`;
   document.body.appendChild(a);
   a.click();
   a.remove();
