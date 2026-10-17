@@ -3,6 +3,9 @@ const scanned = new Set();
 let history = JSON.parse(localStorage.getItem("ean13-history") || "[]");
 let stream = null, scanning = false, detector = null;
 let scanCooldownUntil = 0;
+let scanTimer = null;
+let cameraIdleTimer = null;
+const CAMERA_IDLE_MS = 30000;
 let audioCtx = null;
 let voiceReady = false;
 let scanCanvas = null;
@@ -111,6 +114,7 @@ async function startCamera(){
     });
     video.srcObject=stream; await video.play(); video.style.display="block"; placeholder.style.display="none"; scanCooldownUntil=0;
     $("startCamera").classList.add("hidden");$("stopCamera").classList.remove("hidden");scanning=true;
+    resetCameraIdleTimer();
     if("BarcodeDetector" in window){
       const formats=await BarcodeDetector.getSupportedFormats();
       const eanFormats=formats.filter(f=>f==="ean_13"||f==="ean-13");
@@ -120,37 +124,46 @@ async function startCamera(){
     }else showResult("Détection EAN13 non disponible sur ce navigateur. Utilisez la saisie manuelle.","unknown");
   }catch(err){showResult("Impossible d'accéder à la caméra. Vérifiez l’autorisation.","unknown")}
 }
+function resetCameraIdleTimer(){
+  clearTimeout(cameraIdleTimer);
+  if(!scanning) return;
+  cameraIdleTimer=setTimeout(()=>{
+    stopCamera();
+    showResult("Scanner arrêté après 30 s sans scan pour économiser la batterie.","unknown");
+  },CAMERA_IDLE_MS);
+}
 async function scanLoop(){
   if(!scanning||!detector)return;
   try{
-    // Ne demander au détecteur que la bande centrale étroite affichée en rouge.
-    // Cela évite que des codes présents ailleurs dans l'image soient pris en compte.
-    if(video.videoWidth && video.videoHeight){
-      const sourceHeight=Math.max(1,Math.floor(video.videoHeight*0.22));
-      const sourceY=Math.floor((video.videoHeight-sourceHeight)/2);
-      if(!scanCanvas){scanCanvas=document.createElement("canvas");scanCtx=scanCanvas.getContext("2d",{willReadFrequently:true});}
-      const targetWidth=video.videoWidth;
-      const targetHeight=sourceHeight;
-      if(scanCanvas.width!==targetWidth||scanCanvas.height!==targetHeight){
-        scanCanvas.width=targetWidth;
-        scanCanvas.height=targetHeight;
-      }
-      scanCtx.drawImage(video,0,sourceY,video.videoWidth,sourceHeight,0,0,targetWidth,targetHeight);
-      const codes=await detector.detect(scanCanvas);
-      if(Date.now() >= scanCooldownUntil && codes.length&&codes[0].rawValue){
-        verify(codes[0].rawValue);
+    if(video.videoWidth && video.videoHeight && Date.now() >= scanCooldownUntil){
+      // Le détecteur peut voir toute l'image, mais un résultat n'est accepté
+      // que si le centre du code est exactement dans la bande de la ligne rouge.
+      const codes=await detector.detect(video);
+      const centerMin=0.44, centerMax=0.56;
+      const match=codes.find(code=>{
+        if(!code.rawValue || !code.boundingBox) return false;
+        const box=code.boundingBox;
+        const centerY=box.y+(box.height/2);
+        const normalized=centerY/video.videoHeight;
+        return normalized>=centerMin && normalized<=centerMax;
+      });
+      if(match){
+        verify(match.rawValue);
         scanCooldownUntil=Date.now()+2500;
+        resetCameraIdleTimer();
       }
     }
   }catch(e){}
-  requestAnimationFrame(scanLoop);
+  if(scanning) scanTimer=setTimeout(scanLoop,220);
 }
 function stopCamera(){
-  scanning=false;scanCooldownUntil=0;if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;video.style.display="none";placeholder.style.display="flex";
+  scanning=false;scanCooldownUntil=0;clearTimeout(scanTimer);clearTimeout(cameraIdleTimer);scanTimer=null;cameraIdleTimer=null;
+  if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;video.style.display="none";placeholder.style.display="flex";
   $("startCamera").classList.remove("hidden");$("stopCamera").classList.add("hidden");
 }
 $("startCamera").addEventListener("click",startCamera);
 $("stopCamera").addEventListener("click",stopCamera);
+
 function xmlEscape(value){
   return String(value)
     .replace(/&/g,"&amp;")
