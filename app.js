@@ -4,6 +4,7 @@ let history = JSON.parse(localStorage.getItem("ean13-history") || "[]");
 let stream = null, scanning = false, detector = null;
 let scanCooldownUntil = 0;
 let audioCtx = null;
+let voiceReady = false;
 
 const $ = id => document.getElementById(id);
 const fileInput=$("fileInput"), fileName=$("fileName"), fileStatus=$("fileStatus");
@@ -28,27 +29,41 @@ function renderHistory(){
     </div>`).join("");
 }
 
-function beep(type){
+function speakResult(type){
   try{
-    const Ctx = window.AudioContext || window.webkitAudioContext;
-    if(!Ctx) return;
-    if(!audioCtx) audioCtx = new Ctx();
-    if(audioCtx.state === "suspended") audioCtx.resume();
-    const now = audioCtx.currentTime;
-    const tone=(freq,start,dur,wave="sine")=>{
-      const o=audioCtx.createOscillator(), g=audioCtx.createGain();
-      o.type=wave; o.frequency.value=freq;
-      g.gain.setValueAtTime(0.0001,now+start);
-      g.gain.exponentialRampToValueAtTime(0.07,now+start+0.01);
-      g.gain.exponentialRampToValueAtTime(0.0001,now+start+dur);
-      o.connect(g); g.connect(audioCtx.destination);
-      o.start(now+start); o.stop(now+start+dur+0.02);
-    };
-    if(type==="ok"){tone(880,0,.10);tone(1320,.12,.12)}
-    else if(type==="unknown"){tone(260,0,.18,"square")}
-    else {tone(520,0,.10,"triangle");tone(520,.13,.10,"triangle")}
+    if(!('speechSynthesis' in window)) return;
+    const text = type === "ok" ? "OK" : type === "unknown" ? "Inconnu" : "Doublon";
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = "fr-FR";
+    utterance.rate = 0.95;
+    utterance.pitch = 1;
+    utterance.volume = 1;
+    const voices = window.speechSynthesis.getVoices();
+    const frenchVoice = voices.find(v => /^fr(-|_)/i.test(v.lang));
+    if(frenchVoice) utterance.voice = frenchVoice;
+    window.speechSynthesis.speak(utterance);
+    voiceReady = true;
   }catch(e){}
 }
+
+function unlockVoice(){
+  try{
+    if(!('speechSynthesis' in window)) return;
+    const utterance = new SpeechSynthesisUtterance("");
+    utterance.lang = "fr-FR";
+    utterance.volume = 0;
+    window.speechSynthesis.speak(utterance);
+    voiceReady = true;
+  }catch(e){}
+}
+
+if('speechSynthesis' in window){
+  window.speechSynthesis.getVoices();
+  window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+}
+
+function speechResultFallback(type){ speakResult(type); }
 
 function verify(code){
   code=String(code).replace(/\D/g,"");
@@ -60,7 +75,7 @@ function verify(code){
   $("manualInput").value = "";
   renderHistory();
   showResult(`${code} — ${label}`,cls);
-  try{beep(cls)}catch(e){}
+  try{speechResultFallback(cls)}catch(e){}
 }
 function showResult(msg,cls){
   resultEl.textContent=msg;
@@ -75,11 +90,12 @@ fileInput.addEventListener("change", async e=>{
   text.split(/\r?\n/).forEach(line=>{const code=line.trim().replace(/\D/g,"");if(validEAN13(code))refs.add(code)});
   fileStatus.textContent=`${refs.size} EAN13 de référence chargés.`;
 });
-$("verifyBtn").addEventListener("click",()=>verify($("manualInput").value));
+$("verifyBtn").addEventListener("click",()=>{unlockVoice(); verify($("manualInput").value)});
 $("manualInput").addEventListener("keydown",e=>{if(e.key==="Enter")verify(e.target.value)});
 
 async function startCamera(){
   try{
+    unlockVoice();
     stream=await navigator.mediaDevices.getUserMedia({
       video:{facingMode:{exact:"environment"},width:{ideal:1280},height:{ideal:720}},
       audio:false
