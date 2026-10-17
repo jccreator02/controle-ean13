@@ -41,22 +41,18 @@ function ensureAudio(){
 function beep(type){
   ensureAudio();
   if(!audioCtx) return;
-
   const now = audioCtx.currentTime;
-  const gain = audioCtx.createGain();
-  gain.connect(audioCtx.destination);
-  gain.gain.setValueAtTime(0.0001, now);
 
   const tone = (freq, start, duration, volume=0.07, wave="sine") => {
     const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
     osc.type = wave;
     osc.frequency.setValueAtTime(freq, now + start);
-    const g = audioCtx.createGain();
-    g.gain.setValueAtTime(0.0001, now + start);
-    g.gain.exponentialRampToValueAtTime(volume, now + start + 0.012);
-    g.gain.exponentialRampToValueAtTime(0.0001, now + start + duration);
-    osc.connect(g);
-    g.connect(audioCtx.destination);
+    gain.gain.setValueAtTime(0.0001, now + start);
+    gain.gain.exponentialRampToValueAtTime(volume, now + start + 0.012);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + start + duration);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
     osc.start(now + start);
     osc.stop(now + start + duration + 0.02);
   };
@@ -111,7 +107,9 @@ async function startCamera(){
         audio:false
       });
     });
-    video.srcObject=stream; await video.play(); video.style.display="block"; placeholder.style.display="none";\n    scanCooldownUntil = 0;\n    ensureAudio();
+    video.srcObject=stream; await video.play(); video.style.display="block"; placeholder.style.display="none";
+    scanCooldownUntil = 0;
+    ensureAudio();
     $("startCamera").classList.add("hidden");$("stopCamera").classList.remove("hidden");scanning=true;
     if("BarcodeDetector" in window){
       const formats=await BarcodeDetector.getSupportedFormats();
@@ -127,11 +125,9 @@ async function scanLoop(){
   try{
     const now = Date.now();
     if(now >= scanCooldownUntil){
-      const codes=await detector.detect(video);
-      if(codes.length&&codes[0].rawValue){
+      const codes = await detector.detect(video);
+      if(codes.length && codes[0].rawValue){
         verify(codes[0].rawValue);
-        // Pause automatic scanning briefly so the same barcode cannot be
-        // registered repeatedly while it remains in front of the camera.
         scanCooldownUntil = Date.now() + 2500;
       }
     }
@@ -139,7 +135,8 @@ async function scanLoop(){
   requestAnimationFrame(scanLoop);
 }
 function stopCamera(){
-  scanning=false;if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;video.style.display="none";placeholder.style.display="flex";
+  scanning=false;
+  scanCooldownUntil = 0;if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;video.style.display="none";placeholder.style.display="flex";
   $("startCamera").classList.remove("hidden");$("stopCamera").classList.add("hidden");
 }
 $("startCamera").addEventListener("click",startCamera);
