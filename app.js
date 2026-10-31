@@ -1,7 +1,9 @@
 const refs = new Set();
 const scanned = new Set();
 let history = JSON.parse(localStorage.getItem("ean13-history") || "[]");
+history.forEach(x => scanned.add(x.code));
 let stream = null, scanning = false, detector = null;
+let cameraZoomed = false;
 let scanCooldownUntil = 0;
 let scanTimer = null;
 let cameraIdleTimer = null;
@@ -19,9 +21,14 @@ const video=$("video"), placeholder=$("scanPlaceholder");
 
 function validEAN13(s){return /^\d{13}$/.test(s)}
 function statusFor(code){
-  if(!refs.has(code)) return ["unknown","INCONNU"];
-  if(scanned.has(code)) return ["duplicate","DOUBLON"];
+  const alreadyScanned = scanned.has(code);
+  const known = refs.has(code);
+
+  if(alreadyScanned && !known) return ["duplicate-unknown","DOUBLON-INCONNU"];
+  if(alreadyScanned && known) return ["duplicate","DOUBLON"];
+
   scanned.add(code);
+  if(!known) return ["unknown","INCONNU"];
   return ["ok","OK"];
 }
 function renderHistory(){
@@ -31,14 +38,14 @@ function renderHistory(){
     <div class="row">
       <span class="dot ${x.cls}"></span>
       <span class="code ${x.cls}">${x.code}</span>
-      <span class="badge ${x.cls}">${x.cls==="ok"?"✓ OK":x.cls==="unknown"?"✕ INCONNU":"▣ DOUBLON"}</span>
+      <span class="badge ${x.cls}">${x.cls==="ok"?"✓ OK":x.cls==="unknown"?"✕ INCONNU":x.cls==="duplicate-unknown"?"▣ DOUBLON-INCONNU":"▣ DOUBLON"}</span>
     </div>`).join("");
 }
 
 function speakResult(type){
   try{
     if(!('speechSynthesis' in window)) return;
-    const text = type === "ok" ? "OK" : type === "unknown" ? "Inconnu" : "Doublon";
+    const text = type === "ok" ? "OK" : type === "unknown" ? "Inconnu" : type === "duplicate-unknown" ? "Doublon-Inconnu" : "Doublon";
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = "fr-FR";
@@ -101,6 +108,10 @@ $("verifyBtn").addEventListener("click",()=>{unlockVoice(); verify($("manualInpu
 $("manualInput").addEventListener("keydown",e=>{if(e.key==="Enter")verify(e.target.value)});
 
 async function startCamera(){
+  if(refs.size === 0){
+    showResult("Veuillez d’abord charger un fichier TXT avant de démarrer le scanner.","unknown");
+    return;
+  }
   try{
     unlockVoice();
     stream=await navigator.mediaDevices.getUserMedia({
@@ -157,12 +168,38 @@ async function scanLoop(){
   if(scanning) scanTimer=setTimeout(scanLoop,220);
 }
 function stopCamera(){
+  cameraZoomed=false;
   scanning=false;scanCooldownUntil=0;clearTimeout(scanTimer);clearTimeout(cameraIdleTimer);scanTimer=null;cameraIdleTimer=null;
   if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;video.style.display="none";placeholder.style.display="flex";
   $("startCamera").classList.remove("hidden");$("stopCamera").classList.add("hidden");
 }
+async function toggleCameraZoom(){
+  if(!stream || !scanning) return;
+  const track = stream.getVideoTracks()[0];
+  if(!track) return;
+
+  const capabilities = track.getCapabilities ? track.getCapabilities() : {};
+  if(!("zoom" in capabilities)){
+    showResult("Le zoom caméra ×3 n’est pas disponible sur cet appareil.","unknown");
+    return;
+  }
+
+  const min = Number.isFinite(capabilities.zoom?.min) ? capabilities.zoom.min : 1;
+  const max = Number.isFinite(capabilities.zoom?.max) ? capabilities.zoom.max : 3;
+  const target = cameraZoomed ? min : Math.min(3, max);
+
+  try{
+    await track.applyConstraints({advanced:[{zoom:target}]});
+    cameraZoomed = !cameraZoomed;
+    showResult(cameraZoomed ? "Zoom caméra ×3 activé." : "Zoom caméra normal.", "ok");
+  }catch(e){
+    showResult("Impossible de modifier le zoom de la caméra.","unknown");
+  }
+}
+
 $("startCamera").addEventListener("click",startCamera);
 $("stopCamera").addEventListener("click",stopCamera);
+$("scanner").addEventListener("dblclick",toggleCameraZoom);
 
 function xmlEscape(value){
   return String(value)
@@ -174,36 +211,32 @@ function xmlEscape(value){
 }
 
 function exportExcel(){
-  const scannedHistory = history.slice().reverse();
   const unscanned = [...refs].filter(code => !scanned.has(code));
+  const unknowns = [...new Set(
+    history
+      .filter(x => x.cls === "unknown" || x.cls === "duplicate-unknown")
+      .map(x => x.code)
+  )];
 
   const rows = [];
   rows.push(`
     <Row>
-      <Cell ss:StyleID="Header"><Data ss:Type="String">Historique de scan</Data></Cell>
-      <Cell ss:StyleID="Header"><Data ss:Type="String">Références manquantes</Data></Cell>
+      <Cell ss:StyleID="Header"><Data ss:Type="String">EAN13 manquants</Data></Cell>
+      <Cell ss:StyleID="Header"><Data ss:Type="String">Inconnus</Data></Cell>
     </Row>`);
 
-  const maxRows = Math.max(scannedHistory.length, unscanned.length, 1);
+  const maxRows = Math.max(unscanned.length, unknowns.length, 1);
 
   for(let i=0;i<maxRows;i++){
-    const scan = scannedHistory[i];
-    const missing = unscanned[i];
-
-    let scanCell = `<Cell><Data ss:Type="String"></Data></Cell>`;
-    if(scan){
-      const style = scan.cls === "ok" ? "OK" :
-                    scan.cls === "unknown" ? "Unknown" : "Duplicate";
-      const label = scan.cls === "ok" ? "OK" :
-                    scan.cls === "unknown" ? "INCONNU" : "DOUBLON";
-      scanCell = `<Cell ss:StyleID="${style}"><Data ss:Type="String">${xmlEscape(scan.code)} — ${label}</Data></Cell>`;
-    }
-
-    const missingCell = missing
-      ? `<Cell ss:StyleID="Missing"><Data ss:Type="String">${xmlEscape(missing)}</Data></Cell>`
+    const missingCell = unscanned[i]
+      ? `<Cell ss:StyleID="Missing"><Data ss:Type="String">${xmlEscape(unscanned[i])}</Data></Cell>`
       : `<Cell><Data ss:Type="String"></Data></Cell>`;
 
-    rows.push(`<Row>${scanCell}${missingCell}</Row>`);
+    const unknownCell = unknowns[i]
+      ? `<Cell ss:StyleID="Unknown"><Data ss:Type="String">${xmlEscape(unknowns[i])}</Data></Cell>`
+      : `<Cell><Data ss:Type="String"></Data></Cell>`;
+
+    rows.push(`<Row>${missingCell}${unknownCell}</Row>`);
   }
 
   const xml = `<?xml version="1.0"?>
@@ -214,33 +247,25 @@ function exportExcel(){
  xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
  <Styles>
   <Style ss:ID="Default" ss:Name="Normal">
-   <Alignment ss:Vertical="Center"/>
+   <Alignment ss:Vertical="center"/>
    <Font ss:FontName="Calibri" ss:Size="11"/>
   </Style>
   <Style ss:ID="Header">
    <Font ss:Bold="1" ss:Color="#FFFFFF"/>
    <Interior ss:Color="#17365D" ss:Pattern="Solid"/>
   </Style>
-  <Style ss:ID="OK">
-   <Font ss:Color="#008000" ss:Bold="1"/>
-   <Interior ss:Color="#FFFFFF" ss:Pattern="Solid"/>
-  </Style>
   <Style ss:ID="Unknown">
    <Font ss:Color="#C00000" ss:Bold="1"/>
    <Interior ss:Color="#FFFFFF" ss:Pattern="Solid"/>
   </Style>
-  <Style ss:ID="Duplicate">
-   <Font ss:Color="#C65911" ss:Bold="1"/>
-   <Interior ss:Color="#FFFFFF" ss:Pattern="Solid"/>
-  </Style>
   <Style ss:ID="Missing">
    <Font ss:Color="#7F6000" ss:Bold="1"/>
-   <Interior ss:Color="#FFF2CC" ss:Pattern="Solid"/>
+   <Interior ss:Color="#FFFFFF" ss:Pattern="Solid"/>
   </Style>
  </Styles>
  <Worksheet ss:Name="Contrôle EAN13">
   <Table>
-   <Column ss:Width="220"/>
+   <Column ss:Width="180"/>
    <Column ss:Width="180"/>
    ${rows.join("")}
   </Table>
@@ -258,6 +283,20 @@ function exportExcel(){
   a.remove();
   setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
+
+function resetControl(){
+  stopCamera();
+  history=[];
+  scanned.clear();
+  localStorage.removeItem("ean13-history");
+  renderHistory();
+  showResult("Historique effacé. Le fichier TXT reste chargé.","ok");
+}
+$("resetBtn").addEventListener("click",()=>{
+  if(confirm("Effacer l’historique et réinitialiser le contrôle sans créer de fichier Excel ?")){
+    resetControl();
+  }
+});
 
 $("finishBtn").addEventListener("click",()=>{
   if(confirm("Terminer le contrôle et créer le fichier Excel ?")){

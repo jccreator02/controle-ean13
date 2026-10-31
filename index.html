@@ -21,7 +21,7 @@
     <div class="title-row">
       <div class="icon barcode-icon">▥</div>
       <div>
-        <h1>Contrôle EAN13 <span class="version-badge">V6.8</span></h1>
+        <h1>Contrôle EAN13 <span class="version-badge">V6.9</span></h1>
         <p>Charger un fichier TXT contenant les EAN13 de référence.</p>
       </div>
     </div>
@@ -36,7 +36,7 @@
 
   <section class="card scan-card">
     <h2><span class="camera">◉</span> Scan</h2>
-    <div class="scanner">
+    <div class="scanner" id="scanner" title="Double-cliquer pour activer/désactiver le zoom ×3">
       <video id="video" playsinline muted></video>
       <div class="scan-placeholder" id="scanPlaceholder">
         <div class="big-barcode">▥</div>
@@ -67,7 +67,10 @@
     <div id="history" class="history"></div>
   </section>
 
-  <button id="finishBtn" class="finish">🛡 <span>Fin du contrôle</span></button>
+  <div class="control-actions">
+    <button id="resetBtn" class="reset">↻ Réinitialiser</button>
+    <button id="finishBtn" class="finish">🛡 <span>Fin du contrôle</span></button>
+  </div>
 </main>
 <script src="app.js"></script><script>
 window.addEventListener("load",()=>{setTimeout(()=>document.getElementById("installHint").classList.remove("hidden"),1200)});

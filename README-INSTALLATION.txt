@@ -1,4 +1,4 @@
-# Contrôle EAN13 — V6.7
+# Contrôle EAN13 — V6.9
 
 ## Installation sur smartphone
 
@@ -16,14 +16,16 @@ La caméra nécessite une page HTTPS (sauf localhost).
 1. Appuyer sur « Choisir un fichier » et sélectionner le TXT contenant les EAN13 de référence.
 2. Appuyer sur « Démarrer le scanner ».
 3. Autoriser la caméra et utiliser la caméra arrière.
-4. Le scan classe automatiquement le code en OK, INCONNU ou DOUBLON.
+4. Le scan classe automatiquement le code en OK, INCONNU, DOUBLON ou DOUBLON-INCONNU.
 5. Les scans apparaissent dans l'historique avec défilement.
-6. « Fin du contrôle » génère le fichier Excel avec l'historique et les références manquantes.
+6. « Réinitialiser » efface l’historique sans créer de fichier Excel. « Fin du contrôle » génère un fichier Excel avec uniquement les EAN13 manquants et les inconnus.
 
 ## Important
+Un double-clic sur la zone caméra active/désactive le zoom ×3 lorsqu’il est disponible. Le scanner refuse de démarrer tant qu’un fichier TXT n’est pas chargé.
+
 La détection automatique EAN13 utilise l'API BarcodeDetector lorsqu'elle est disponible dans le navigateur. Si elle n'est pas disponible, la saisie manuelle reste utilisable.
 
 
-### Nom du fichier de fin de contrôle
+### Fonctions caméra et nom du fichier de fin de contrôle
 Le nom du fichier Excel commence par « 1er contrôle » et reprend automatiquement le nom du TXT chargé.
 Exemple : `references.txt` devient `1er contrôle - references.xls`.
