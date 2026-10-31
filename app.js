@@ -218,11 +218,23 @@ function exportExcel(){
       .map(x => x.code)
   )];
 
+  const totalRefs = refs.size;
+  const okCount = [...refs].filter(code => scanned.has(code)).length;
+  const okRate = totalRefs > 0 ? (okCount / totalRefs) * 100 : 0;
+  const okRateText = okRate.toFixed(1).replace(".", ",") + "%";
+
   const rows = [];
+  rows.push(`
+    <Row ss:Height="24">
+      <Cell ss:StyleID="Summary"><Data ss:Type="String">Inconnus : ${unknowns.length}</Data></Cell>
+      <Cell ss:StyleID="Summary"><Data ss:Type="String">Manquants : ${unscanned.length}</Data></Cell>
+      <Cell ss:StyleID="Summary"><Data ss:Type="String">Taux de OK : ${okRateText}</Data></Cell>
+    </Row>`);
   rows.push(`
     <Row>
       <Cell ss:StyleID="Header"><Data ss:Type="String">EAN13 manquants</Data></Cell>
       <Cell ss:StyleID="Header"><Data ss:Type="String">Inconnus</Data></Cell>
+      <Cell><Data ss:Type="String"></Data></Cell>
     </Row>`);
 
   const maxRows = Math.max(unscanned.length, unknowns.length, 1);
@@ -254,6 +266,10 @@ function exportExcel(){
    <Font ss:Bold="1" ss:Color="#FFFFFF"/>
    <Interior ss:Color="#17365D" ss:Pattern="Solid"/>
   </Style>
+  <Style ss:ID="Summary">
+   <Font ss:Bold="1" ss:Size="12"/>
+   <Interior ss:Color="#D9EAF7" ss:Pattern="Solid"/>
+  </Style>
   <Style ss:ID="Unknown">
    <Font ss:Color="#C00000" ss:Bold="1"/>
    <Interior ss:Color="#FFFFFF" ss:Pattern="Solid"/>
@@ -265,6 +281,7 @@ function exportExcel(){
  </Styles>
  <Worksheet ss:Name="Contrôle EAN13">
   <Table>
+   <Column ss:Width="180"/>
    <Column ss:Width="180"/>
    <Column ss:Width="180"/>
    ${rows.join("")}
